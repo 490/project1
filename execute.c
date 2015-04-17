@@ -101,7 +101,7 @@ void release(){
 Job* addJob(pid_t pid){
     Job *now = NULL, *last = NULL, *job = (Job*)malloc(sizeof(Job));
     
-    //初始化新的job
+	//初始化新的job
     job->pid = pid;
     strcpy(job->cmd, inputBuff);
     strcpy(job->state, RUNNING);
@@ -110,11 +110,11 @@ Job* addJob(pid_t pid){
     if(head == NULL){ //若是第一个job，则设置为头指针
         head = job;
     }else{ //否则，根据pid将新的job插入到链表的合适位置
-        now = head;
-        while(now != NULL && now->pid < pid){
-            last = now;
-            now = now->next;
-        }
+		now = head;
+		while(now != NULL && now->pid < pid){
+			last = now;
+			now = now->next;
+		}
         last->next = job;
         job->next = now;
     }
@@ -135,16 +135,16 @@ void rmJob(int sig, siginfo_t *sip, void* noused){
     pid = sip->si_pid;
 
     now = head;
-    while(now != NULL && now->pid < pid){
-        last = now;
-        now = now->next;
-    }
+	while(now != NULL && now->pid < pid){
+		last = now;
+		now = now->next;
+	}
     
     if(now == NULL){ //作业不存在，则不进行处理直接返回
         return;
     }
     
-    //开始移除该作业
+	//开始移除该作业
     if(now == head){
         head = now->next;
     }else{
@@ -165,34 +165,40 @@ void ctrl_Z(){
     //SIGCHLD信号产生自ctrl+z
     ingnore = 1;
     
-    now = head;
-    while(now != NULL && now->pid != fgPid)
-        now = now->next;
+	now = head;
+	while(now != NULL && now->pid != fgPid)
+		now = now->next;
     
     if(now == NULL){ //未找到前台作业，则根据fgPid添加前台作业
         now = addJob(fgPid);
     }
     
-    //修改前台作业的状态及相应的命令格式，并打印提示信息
+	//修改前台作业的状态及相应的命令格式，并打印提示信息
     strcpy(now->state, STOPPED); 
     now->cmd[strlen(now->cmd)] = '&';
     now->cmd[strlen(now->cmd) + 1] = '\0';
     printf("[%d]\t%s\t\t%s\n", now->pid, now->state, now->cmd);
     
-    //发送SIGSTOP信号给正在前台运作的工作，将其停止
+	//发送SIGSTOP信号给正在前台运作的工作，将其停止
     kill(fgPid, SIGSTOP);
     fgPid = 0;
 }
+
 /*组合键命令ctrl+c*/
 void ctrl_C(){
     Job *now = NULL;
     if(fgPid == 0){ //前台没有作业则直接返回
         return;
     }
+    
+
     now = head;
-    while(now != NULL && now->pid != fgPid)
-        now = now->next;
-    //发送SIGINT信号给正在前台运作的工作，将其停止
+	while(now != NULL && now->pid != fgPid)
+		now = now->next;
+    
+    
+
+	//发送SIGINT信号给正在前台运作的工作，将其停止
     kill(fgPid, SIGINT);
     fgPid = 0;
 }
@@ -200,15 +206,15 @@ void ctrl_C(){
 /*fg命令*/
 void fg_exec(int pid){    
     Job *now = NULL; 
-    int i;
+	int i;
     
     //SIGCHLD信号产生自此函数
     ingnore = 1;
     
-    //根据pid查找作业
+	//根据pid查找作业
     now = head;
-    while(now != NULL && now->pid != pid)
-        now = now->next;
+	while(now != NULL && now->pid != pid)
+		now = now->next;
     
     if(now == NULL){ //未找到作业
         printf("pid为7%d 的作业不存在！\n", pid);
@@ -223,7 +229,7 @@ void fg_exec(int pid){
     signal(SIGINT, ctrl_C);//设置signal信号，为下一次按下组合键Ctrl+C做准备
     i = strlen(now->cmd) - 1;
     while(i >= 0 && now->cmd[i] != '&')
-        i--;
+		i--;
     now->cmd[i] = '\0';
     
     printf("%s\n", now->cmd);
@@ -238,10 +244,10 @@ void bg_exec(int pid){
     //SIGCHLD信号产生自此函数
     ingnore = 1;
     
-    //根据pid查找作业
-    now = head;
+	//根据pid查找作业
+	now = head;
     while(now != NULL && now->pid != pid)
-        now = now->next;
+		now = now->next;
     
     if(now == NULL){ //未找到作业
         printf("pid为7%d 的作业不存在！\n", pid);
@@ -262,7 +268,7 @@ void addHistory(char *cmd){
         history.end = 0;
         strcpy(history.cmds[history.end], cmd);
         return;
-    }
+	}
     
     history.end = (history.end + 1)%HISTORY_LEN; //end前移一位
     strcpy(history.cmds[history.end], cmd); //将命令拷贝到end指向的数组中
@@ -306,18 +312,18 @@ void init(){
     int fd, n, len;
     char c, buf[80];
 
-    //打开查找路径文件ysh.conf
+	//打开查找路径文件ysh.conf
     if((fd = open("ysh.conf", O_RDONLY, 660)) == -1){
         perror("init environment failed\n");
         exit(1);
     }
     
-    //初始化history链表
+	//初始化history链表
     history.end = -1;
     history.start = 0;
     
     len = 0;
-    //将路径文件内容依次读入到buf[]中
+	//将路径文件内容依次读入到buf[]中
     while(read(fd, &c, 1) != 0){ 
         buf[len++] = c;
     }
@@ -345,7 +351,7 @@ SimpleCmd* handleSimpleCmdStr(int begin, int end){
     char c, buff[10][40], inputFile[30], outputFile[30], *temp = NULL;
     SimpleCmd *cmd = (SimpleCmd*)malloc(sizeof(SimpleCmd));
     
-    //默认为非后台命令，输入输出重定向为null
+	//默认为非后台命令，输入输出重定向为null
     cmd->isBack = 0;
     cmd->input = cmd->output = NULL;
     
@@ -357,7 +363,7 @@ SimpleCmd* handleSimpleCmdStr(int begin, int end){
     outputFile[0] = '\0';
     
     i = begin;
-    //跳过空格等无用信息
+	//跳过空格等无用信息
     while(i < end && (inputBuff[i] == ' ' || inputBuff[i] == '\t')){
         i++;
     }
@@ -367,7 +373,7 @@ SimpleCmd* handleSimpleCmdStr(int begin, int end){
     fileFinished = 0;
     temp = buff[k]; //以下通过temp指针的移动实现对buff[i]的顺次赋值过程
     while(i < end){
-        /*根据命令字符的不同情况进行不同的处理*/
+		/*根据命令字符的不同情况进行不同的处理*/
         switch(inputBuff[i]){ 
             case ' ':
             case '\t': //命令名及参数的结束标志
@@ -381,7 +387,7 @@ SimpleCmd* handleSimpleCmdStr(int begin, int end){
 
             case '<': //输入重定向标志
                 if(j != 0){
-            //此判断为防止命令直接挨着<符号导致判断为同一个参数，如果ls<sth
+		    //此判断为防止命令直接挨着<符号导致判断为同一个参数，如果ls<sth
                     temp[j] = '\0';
                     j = 0;
                     if(!fileFinished){
@@ -425,13 +431,13 @@ SimpleCmd* handleSimpleCmdStr(int begin, int end){
             default: //默认则读入到temp指定的空间
                 temp[j++] = inputBuff[i++];
                 continue;
-        }
+		}
         
-        //跳过空格等无用信息
+		//跳过空格等无用信息
         while(i < end && (inputBuff[i] == ' ' || inputBuff[i] == '\t')){
             i++;
         }
-    }
+	}
     
     if(inputBuff[end-1] != ' ' && inputBuff[end-1] != '\t' && inputBuff[end-1] != '&'){
         temp[j] = '\0';
@@ -440,7 +446,7 @@ SimpleCmd* handleSimpleCmdStr(int begin, int end){
         }
     }
     
-    //依次为命令名及其各个参数赋值
+	//依次为命令名及其各个参数赋值
     cmd->args = (char**)malloc(sizeof(char*) * (k + 1));
     cmd->args[k] = NULL;
     for(i = 0; i<k; i++){
@@ -449,7 +455,7 @@ SimpleCmd* handleSimpleCmdStr(int begin, int end){
         strcpy(cmd->args[i], buff[i]);
     }
     
-    //如果有输入重定向文件，则为命令的输入重定向变量赋值
+	//如果有输入重定向文件，则为命令的输入重定向变量赋值
     if(strlen(inputFile) != 0){
         j = strlen(inputFile);
         cmd->input = (char*)malloc(sizeof(char) * (j + 1));
@@ -465,9 +471,9 @@ SimpleCmd* handleSimpleCmdStr(int begin, int end){
     #ifdef DEBUG
     printf("****\n");
     printf("isBack: %d\n",cmd->isBack);
-        for(i = 0; cmd->args[i] != NULL; i++){
-            printf("args[%d]: %s\n",i,cmd->args[i]);
-    }
+    	for(i = 0; cmd->args[i] != NULL; i++){
+    		printf("args[%d]: %s\n",i,cmd->args[i]);
+	}
     printf("input: %s\n",cmd->input);
     printf("output: %s\n",cmd->output);
     printf("****\n");
@@ -478,6 +484,90 @@ SimpleCmd* handleSimpleCmdStr(int begin, int end){
 /*******************************************************
                       命令执行
 ********************************************************/
+/*执行管道命令*/
+void ExecPipeCmd(SimpleCmd *pipeCmd[20],int pipeNum){
+    int i=0;
+    int pipeIn, pipeOut;
+    int pipe_fd[20][2];//定义多个管道
+    pid_t pid_child[20];//定义各进程号
+
+    if(pipe(pipe_fd[i])<0){
+	printf("create pipe failed\n");
+	return;
+    }
+    if(!(pid_child[0] = fork())) { //创建子进程pid_child[0]
+	close(pipe_fd[i][0]);//关闭进程的标准输出文件
+	dup2(pipe_fd[i][1], 1);//将管道的写描述符复制到进程的标准输出
+	close(pipe_fd[i][1]);//关闭进程的标准输入文件
+	if(pipeCmd[i]->input != NULL){ //存在输入重定向
+                if((pipeIn = open(pipeCmd[i]->input, O_RDONLY, S_IRUSR|S_IWUSR)) == -1){
+                    printf("can't open the file %s！\n", pipeCmd[i]->input);
+                    return;
+                }
+                if(dup2(pipeIn, 0) == -1){
+                    printf("Redirect standard input error！\n");
+                    return;
+                }
+        }	
+	if(exists(pipeCmd[i]->args[0])){ //命令存在执行命令
+            if(execve(cmdBuff, pipeCmd[i]->args,NULL) < 0){ 
+                printf("execv failed!\n");
+                return;
+            }
+   	}
+    }
+    close(pipe_fd[i][1]);//关闭进程的标准输出文件
+    waitpid(pid_child[0], NULL, 0);//父进程等待前台进程的运行
+    i++;
+    while(i<=pipeNum-1){
+	if(pipe(pipe_fd[i])<0){
+		printf("create pipe failed\n");
+		return;
+	}
+	if(!(pid_child[i]=fork())){//创建子进程
+		close(pipe_fd[i-1][0]);//关闭管道的读入
+		dup2(pipe_fd[i-1][0],0);//将读描述符复制到进程的标准输入
+		close(pipe_fd[i-1][0]);//关闭上一管道的输出
+		close(pipe_fd[i-1][1]);//关闭进程的标准输入文件
+		dup2(pipe_fd[i][1],1);//将管道的写描述符复制到进程的标准输出
+		close(pipe_fd[i][1]);//关闭进程的标准输入文件
+		if(exists(pipeCmd[i]->args[0])){ //命令存在执行命令
+            		if(execve(cmdBuff, pipeCmd[i]->args,NULL) < 0){ 
+                		printf("execv failed!\n");
+                		return;
+			}
+   		}
+	}
+	close(pipe_fd[i][1]);//关闭进程的标准输出文件
+    	waitpid(pid_child[i], NULL, 0);//父进程等待前台进程的运行
+    	i++;
+    }
+    if(!(pid_child[i]=fork())){//创建子进程
+	close(pipe_fd[i-1][1]);//关闭进程的标准输入文件
+        dup2(pipe_fd[i-1][0], 0); //将管道的读描述符复制到进程的标准输入
+        close(pipe_fd[i-1][0]); //关闭进程的标准输出文件
+	if(pipeCmd[i]->output != NULL){ //存在输出重定向
+                if((pipeOut = open(pipeCmd[i]->output, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1){
+                    printf("can't open the file %s！\n", pipeCmd[i]->output);
+                    return ;
+                }
+                if(dup2(pipeOut, 1) == -1){
+                    printf("Redirect standard output error！\n");
+                    return;
+                }
+        }
+        if(exists(pipeCmd[i]->args[0])){ //命令存在
+            if(execve(cmdBuff, pipeCmd[i]->args,NULL) < 0){ //执行命令
+                printf("execv failed!\n");
+                return;
+            }
+   	}
+    }
+    close(pipe_fd[i-1][0]);//关闭进程的标准输入文件
+    waitpid(pid_child[i], NULL, 0); //父进程等待前台进程的运行
+    return;
+}
+
 /*执行外部命令*/
 void execOuterCmd(SimpleCmd *cmd){
     pid_t pid;
@@ -528,7 +618,7 @@ void execOuterCmd(SimpleCmd *cmd){
                 return;
             }
         }
-        else{ //父进程
+		else{ //父进程
             if(cmd ->isBack){ //后台命令             
                 fgPid = 0; //pid置0，为下一命令做准备
                 addJob(pid); //增加新的作业
@@ -542,9 +632,9 @@ void execOuterCmd(SimpleCmd *cmd){
                 fgPid = pid;
                 waitpid(pid, NULL, 0);
             }
-        }
+		}
     }else{ //命令不存在
-        printf("找不到命令 15%s\n", inputBuff);
+        printf("找不到命令 15%s !\n", inputBuff);
     }
 }
 
@@ -590,7 +680,7 @@ void execSimpleCmd(SimpleCmd *cmd){
                 fg_exec(pid);
             }
         }else{
-            printf("fg; 参数不合法，正确格式为：fg %<int> (not have '<>')\n");
+            printf("fg error\n");
         }
     } else if (strcmp(cmd->args[0], "bg") == 0) { //bg命令
         temp = cmd->args[1];
@@ -601,8 +691,8 @@ void execSimpleCmd(SimpleCmd *cmd){
                 bg_exec(pid);
             }
         }
-        else{
-            printf("bg; 参数不合法，正确格式为：bg %<int> (not have '<>')\n");
+		else{
+            printf("bg error\n");
         }
     } else{ //外部命令
         execOuterCmd(cmd);
@@ -616,10 +706,42 @@ void execSimpleCmd(SimpleCmd *cmd){
     }
 }
 
+
 /*******************************************************
                      命令执行接口
 ********************************************************/
 void execute(){
-    SimpleCmd *cmd = handleSimpleCmdStr(0, strlen(inputBuff));
-    execSimpleCmd(cmd);
+    int is_pipe,pipeNum,i,j,begin,pipe[20];
+    SimpleCmd *pipeCmd[20];
+    i=0;
+    j=0;
+    begin=0;
+    is_pipe=0;
+    pipeNum=0;
+    while(i<strlen(inputBuff)){
+	i++;
+	if(inputBuff[i]=='|'){
+		is_pipe=1;//有元字符置判断位is_pipe为1
+		pipe[j++]=i;
+	}
+    }
+    i=0;
+    j=0;
+    if(is_pipe==1){
+	while(inputBuff[i]){
+		SimpleCmd *cmd=handleSimpleCmdStr(begin,pipe[j]-1);//执行命令
+		pipeCmd[pipeNum++]=cmd;
+		begin=i+1;
+		j++;
+	}
+	SimpleCmd *cmd = handleSimpleCmdStr(begin,i );
+	pipeCmd[pipeNum++]=cmd;//复制命令
+	ExecPipeCmd(pipeCmd,pipeNum);
+    }
+    else{
+		SimpleCmd *cmd = handleSimpleCmdStr(0, strlen(inputBuff));
+		execSimpleCmd(cmd);//执行命令
+    }
+    
+	
 }
