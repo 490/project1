@@ -1,9 +1,10 @@
 %{
     #include "global.h"
 
+    int yylex ();
     void yyerror ();
       
-    int commandDone;
+    int offset, len, commandDone;
 %}
 
 %token STRING
@@ -43,7 +44,44 @@ args            :   /* empty */
 /****************************************************************
                   词法分析函数
 ****************************************************************/
-
+int yylex(){
+    //这个函数用来检查inputBuff是否满足lex的定义，实际上并不进行任何操作，初期可略过不看
+    int flag;
+    char c;
+    
+	//跳过空格等无用信息
+    while(offset < len && (inputBuff[offset] == ' ' || inputBuff[offset] == '\t')){ 
+        offset++;
+    }
+    
+    flag = 0;
+    while(offset < len){ //循环进行词法分析，返回终结符
+        c = inputBuff[offset];
+        
+        if(c == ' ' || c == '\t'){
+            offset++;
+            return STRING;
+        }
+        
+        if(c == '<' || c == '>' || c == '&'){
+            if(flag == 1){
+                flag = 0;
+                return STRING;
+            }
+            offset++;
+            return c;
+        }
+        
+        flag = 1;
+        offset++;
+    }
+    
+    if(flag == 1){
+        return STRING;
+    }else{
+        return 0;
+    }
+}
 
 /****************************************************************
                   错误信息执行函数
@@ -63,9 +101,17 @@ int main(int argc, char** argv) {
     init(); //初始化环境
     commandDone = 0;
     
-    printf("6146 @computer:%s$--> ", get_current_dir_name()); //打印提示符信息
+    printf("user-sh@%s> ", get_current_dir_name()); //打印提示符信息
 
     while(1){
+        i = 0;
+        while((c = getchar()) != '\n'){ //读入一行命令
+            inputBuff[i++] = c;
+        }
+        inputBuff[i] = '\0';
+
+        len = i;
+        offset = 0;
         
         yyparse(); //调用语法分析函数，该函数由yylex()提供当前输入的单词符号
 
@@ -73,8 +119,8 @@ int main(int argc, char** argv) {
             commandDone = 0;
             addHistory(inputBuff);
         }
-        inputBuff[0] = '\0'; 
-        printf("6146 @computer:%s$--> ", get_current_dir_name()); //打印提示符信息
+        
+        printf("user-sh@%s> ", get_current_dir_name()); //打印提示符信息
      }
 
     return (EXIT_SUCCESS);
