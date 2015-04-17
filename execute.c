@@ -704,7 +704,7 @@ void execOuterCmd(SimpleCmd *cmd){
             }
 		}
     }else{ //命令不存在
-        printf("找不到命令 15%s !\n", inputBuff);
+        printf("找不到命令 %15s !\n", cmd->args[0]);
     }
 }
 
