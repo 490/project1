@@ -1,7 +1,6 @@
 %{
-    #define _GNU_SOURCE
-    #include "unistd.h"
     #include "global.h"
+
     void yyerror ();
       
     int commandDone;
