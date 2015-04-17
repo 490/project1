@@ -190,14 +190,11 @@ void ctrl_C(){
     if(fgPid == 0){ //前台没有作业则直接返回
         return;
     }
-    
-
+   
     now = head;
 	while(now != NULL && now->pid != fgPid)
 		now = now->next;
     
-    
-
 	//发送SIGINT信号给正在前台运作的工作，将其停止
     kill(fgPid, SIGINT);
     fgPid = 0;
@@ -346,7 +343,8 @@ void init(){
                       命令解析
 ********************************************************/
 SimpleCmd* handleSimpleCmdStr(int begin, int end){
-    int i, j, k;
+
+    int i, j,l, k;
     int fileFinished; //记录命令是否解析完毕
     char c, buff[10][40], inputFile[30], outputFile[30], *temp = NULL;
     SimpleCmd *cmd = (SimpleCmd*)malloc(sizeof(SimpleCmd));
@@ -427,7 +425,22 @@ SimpleCmd* handleSimpleCmdStr(int begin, int end){
                 fileFinished = 1;
                 i++;
                 break;
-                
+             /*case '|':
+					printf("fuck\n");
+					if(j!=0)
+					{
+						temp[j] = '\0';
+                   		j = 0;
+                    	if(!fileFinished)
+						{
+		                    k++;
+		                    temp = buff[k];
+		                }
+					}
+					cmd->isBack=0;
+					fileFinished=1;
+					i++;
+					break;*/
             default: //默认则读入到temp指定的空间
                 temp[j++] = inputBuff[i++];
                 continue;
@@ -445,15 +458,44 @@ SimpleCmd* handleSimpleCmdStr(int begin, int end){
             k++;
         }
     }
-    
+
+
+	cmd->star = 0;
+
+    for(l = begin; l < end; l ++)
+        if(inputBuff[l] == '*' || inputBuff[l] == '?')
+        {
+            cmd->star = 1;
+            FILE* f = fopen("tmp", "w");
+            fprintf(f, "#!/bin/bash\n");
+            int lp;
+            for (lp = begin; lp < end; lp ++)
+                fprintf(f, "%c", inputBuff[lp]);
+            fprintf(f, "\n");
+            fclose(f);
+            break;
+        }
+	
 	//依次为命令名及其各个参数赋值
+    if(!cmd->star)
+{
     cmd->args = (char**)malloc(sizeof(char*) * (k + 1));
     cmd->args[k] = NULL;
     for(i = 0; i<k; i++){
         j = strlen(buff[i]);
-        cmd->args[i] = (char*)malloc(sizeof(char) * (j + 1));   
+        cmd->args[i] = (char*)malloc(sizeof(char) * (j + 1));  
         strcpy(cmd->args[i], buff[i]);
     }
+}
+    else
+{
+        cmd->args = (char**)malloc(sizeof(char*) * (3));
+        cmd->args[0] = (char*)malloc(sizeof(char) * (10));
+        cmd->args[1] = (char*)malloc(sizeof(char) * (10));
+        cmd->args[2] = NULL;
+        strcpy(cmd->args[0], "/bin/bash");
+        strcpy(cmd->args[1], "./tmp");
+}
     
 	//如果有输入重定向文件，则为命令的输入重定向变量赋值
     if(strlen(inputFile) != 0){
@@ -484,84 +526,112 @@ SimpleCmd* handleSimpleCmdStr(int begin, int end){
 /*******************************************************
                       命令执行
 ********************************************************/
+
 /*执行管道命令*/
-void ExecPipeCmd(SimpleCmd *pipeCmd[20],int pipeNum){
+void ExecPipeCmd(SimpleCmd *pipeCmd[20],int pipeNum)
+{
     int i=0;
     int pipeIn, pipeOut;
     int pipe_fd[20][2];//定义多个管道
-    pid_t pid_child[20];//定义各进程号
+    pid_t pid_child[20];//定义各进程号 pid_t <==> int
 
-    if(pipe(pipe_fd[i])<0){
-	printf("create pipe failed\n");
-	return;
+    if(pipe(pipe_fd[i])<0)
+	{
+		printf("create pipe failed\n");
+		return;
     }
-    if(!(pid_child[0] = fork())) { //创建子进程pid_child[0]
-	close(pipe_fd[i][0]);//关闭进程的标准输出文件
-	dup2(pipe_fd[i][1], 1);//将管道的写描述符复制到进程的标准输出
-	close(pipe_fd[i][1]);//关闭进程的标准输入文件
-	if(pipeCmd[i]->input != NULL){ //存在输入重定向
-                if((pipeIn = open(pipeCmd[i]->input, O_RDONLY, S_IRUSR|S_IWUSR)) == -1){
-                    printf("can't open the file %s！\n", pipeCmd[i]->input);
-                    return;
-                }
-                if(dup2(pipeIn, 0) == -1){
-                    printf("Redirect standard input error！\n");
-                    return;
-                }
+    if(!(pid_child[0] = fork()))
+	{ 
+		//创建子进程pid_child[0]
+		close(pipe_fd[i][0]);//关闭进程的标准输出文件
+		dup2(pipe_fd[i][1], 1);//将管道的写描述符复制到进程的标准输出
+		close(pipe_fd[i][1]);//关闭进程的标准输入文件
+		if(pipeCmd[i]->input != NULL)
+		{ 
+			//存在输入重定向
+			if((pipeIn = open(pipeCmd[i]->input, O_RDONLY, S_IRUSR|S_IWUSR)) == -1)//S_IRUSR:Permits the file's owner to read it.
+			{
+				printf("can't open the file : %s ！\n", pipeCmd[i]->input);
+				return;
+			}
+			if(dup2(pipeIn, 0) == -1)
+			{
+				printf("Redirect standard input error！\n");
+				return;
+			}
         }	
-	if(exists(pipeCmd[i]->args[0])){ //命令存在执行命令
-            if(execve(cmdBuff, pipeCmd[i]->args,NULL) < 0){ 
-                printf("execv failed!\n");
-                return;
-            }
-   	}
+		if(exists(pipeCmd[i]->args[0]))//
+		{ 
+			//命令存在执行命令
+		    if(execve(cmdBuff, pipeCmd[i]->args,NULL) < 0)//执行cmdBuff所代表的文件路径，第二个参数执行程序的名字；最后一个参数为传递给执行文件的新环境变量数组。
+			{ 
+		    	printf("execv failed!\n");
+		   		return;
+			}
+  	 	}
     }
     close(pipe_fd[i][1]);//关闭进程的标准输出文件
     waitpid(pid_child[0], NULL, 0);//父进程等待前台进程的运行
     i++;
-    while(i<=pipeNum-1){
-	if(pipe(pipe_fd[i])<0){
-		printf("create pipe failed\n");
-		return;
+    while(i<=pipeNum-1)
+	{
+		if(pipe(pipe_fd[i])<0)
+		{
+			printf("create pipe failed\n");
+			return;
+		}
+		if(!(pid_child[i]=fork()))
+		{
+			//创建子进程
+			close(pipe_fd[i-1][0]);//关闭管道的读入
+			dup2(pipe_fd[i-1][0],0);//将读描述符复制到进程的标准输入
+			close(pipe_fd[i-1][0]);//关闭上一管道的输出
+			close(pipe_fd[i-1][1]);//关闭进程的标准输入文件
+			dup2(pipe_fd[i][1],1);//将管道的写描述符复制到进程的标准输出
+			close(pipe_fd[i][1]);//关闭进程的标准输入文件
+			if(exists(pipeCmd[i]->args[0]))
+			{ //命令存在执行命令
+		        if(execve(cmdBuff, pipeCmd[i]->args,NULL) < 0)
+				{ 
+		            printf("execv failed!\n");
+		            return;
+				}
+	   		}
+		}
+		close(pipe_fd[i][1]);//关闭进程的标准输出文件
+		waitpid(pid_child[i], NULL, 0);//父进程等待前台进程的运行
+		i++;
 	}
-	if(!(pid_child[i]=fork())){//创建子进程
-		close(pipe_fd[i-1][0]);//关闭管道的读入
-		dup2(pipe_fd[i-1][0],0);//将读描述符复制到进程的标准输入
-		close(pipe_fd[i-1][0]);//关闭上一管道的输出
+    if(!(pid_child[i]=fork()))
+	{
+		//创建子进程
 		close(pipe_fd[i-1][1]);//关闭进程的标准输入文件
-		dup2(pipe_fd[i][1],1);//将管道的写描述符复制到进程的标准输出
-		close(pipe_fd[i][1]);//关闭进程的标准输入文件
-		if(exists(pipeCmd[i]->args[0])){ //命令存在执行命令
-            		if(execve(cmdBuff, pipeCmd[i]->args,NULL) < 0){ 
-                		printf("execv failed!\n");
-                		return;
-			}
-   		}
-	}
-	close(pipe_fd[i][1]);//关闭进程的标准输出文件
-    	waitpid(pid_child[i], NULL, 0);//父进程等待前台进程的运行
-    	i++;
-    }
-    if(!(pid_child[i]=fork())){//创建子进程
-	close(pipe_fd[i-1][1]);//关闭进程的标准输入文件
         dup2(pipe_fd[i-1][0], 0); //将管道的读描述符复制到进程的标准输入
         close(pipe_fd[i-1][0]); //关闭进程的标准输出文件
-	if(pipeCmd[i]->output != NULL){ //存在输出重定向
-                if((pipeOut = open(pipeCmd[i]->output, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1){
-                    printf("can't open the file %s！\n", pipeCmd[i]->output);
-                    return ;
-                }
-                if(dup2(pipeOut, 1) == -1){
-                    printf("Redirect standard output error！\n");
-                    return;
-                }
+		if(pipeCmd[i]->output != NULL)
+		{ 	
+			//存在输出重定向
+			if((pipeOut = open(pipeCmd[i]->output, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1)
+			{
+				printf("can't open the file %s！\n", pipeCmd[i]->output);
+				return ;
+			}
+			if(dup2(pipeOut, 1) == -1)
+			{
+				printf("Redirect standard output error！\n");
+				return;
+			}
         }
-        if(exists(pipeCmd[i]->args[0])){ //命令存在
-            if(execve(cmdBuff, pipeCmd[i]->args,NULL) < 0){ //执行命令
+        if(exists(pipeCmd[i]->args[0]))
+		{
+			 //命令存在
+			if(execve(cmdBuff, pipeCmd[i]->args,NULL) < 0)
+			{ 
+				//执行命令
                 printf("execv failed!\n");
                 return;
             }
-   	}
+   		}
     }
     close(pipe_fd[i-1][0]);//关闭进程的标准输入文件
     waitpid(pid_child[i], NULL, 0); //父进程等待前台进程的运行
@@ -674,29 +744,42 @@ void execSimpleCmd(SimpleCmd *cmd){
         }
     } else if (strcmp(cmd->args[0], "fg") == 0) { //fg命令
         temp = cmd->args[1];
-        if(temp != NULL && temp[0] == '%'){
-            pid = str2Pid(temp, 1, strlen(temp));
+         printf("%s\n",temp);   //
+         printf("%s\n",cmd->args[0]); //
+         printf("%s\n",cmd->args[1]); //
+        if(temp != NULL&& temp[0] == '%'){
+            pid = str2Pid(temp,1, strlen(temp));
             if(pid != -1){
                 fg_exec(pid);
             }
         }else{
             printf("fg error\n");
         }
-    } else if (strcmp(cmd->args[0], "bg") == 0) { //bg命令
-        temp = cmd->args[1];
-        if(temp != NULL && temp[0] == '%'){
-            pid = str2Pid(temp, 1, strlen(temp));
-            
-            if(pid != -1){
-                bg_exec(pid);
-            }
-        }
-		else{
-            printf("bg error\n");
-        }
-    } else{ //外部命令
-        execOuterCmd(cmd);
-    }
+    } else 
+	if (strcmp(cmd->args[0], "bg") == 0) 
+	{ //bg命令
+        	temp = cmd->args[1];  
+            	printf("%s\n",temp); //
+           	 printf("%s\n",cmd->args[0]);  //
+            	printf("%s\n",cmd->args[1]);  //
+       		 if(temp != NULL && temp[0] == '%')
+		{
+			pid = str2Pid(temp,1, strlen(temp));
+          
+           		if(pid != -1)
+			{
+              		 bg_exec(pid);
+            		}
+       		 }
+		else
+		{
+		    printf("bg error\n");
+		}
+   	 } 
+	else
+	{ //外部命令
+       		execOuterCmd(cmd);
+   	}
     
     //释放结构体空间
     for(i = 0; cmd->args[i] != NULL; i++){
@@ -710,38 +793,90 @@ void execSimpleCmd(SimpleCmd *cmd){
 /*******************************************************
                      命令执行接口
 ********************************************************/
-void execute(){
-    int is_pipe,pipeNum,i,j,begin,pipe[20];
+void execute()
+{
+	int is_pipe = 0,pipeNum = 0,i,j,len,pipe[20];     
+	SimpleCmd *pipeCmd[20];     
+	len = strlen(inputBuff);
+	pipe[0] = -1;
+	for (i=0,j=0;i<len;i++) 
+		if (inputBuff[i] == '|') 
+		{
+			is_pipe = 1;//有元字符置判断位is_pipe为1
+			pipe[++j] = i;//pipe[0] 固定为 -1
+		}
+	//printf("%d", is_pipe);    
+	if(is_pipe==1)
+	{
+		for (i=1;i<=j;i++) 
+		{    
+			SimpleCmd *cmd=handleSimpleCmdStr(pipe[i-1]+1,pipe[i]);//执行命令            
+	 		pipeCmd[pipeNum++]=cmd; 
+			//printf("pipe[i-1]+1: %d pipe[i]-1: %d \n",pipe[i-1]+1,pipe[i]);
+		} 
+		SimpleCmd *cmd = handleSimpleCmdStr(pipe[j]+1, strlen(inputBuff)); 
+		pipeCmd[pipeNum++]=cmd;//复制命令
+		//printf("pipe[i-1]+1: %d pipe[i]-1: %d \n",pipe[j]+1, strlen(inputBuff));
+		//printf(": %s ,: %s \n",pipeCmd[0]->args[0],pipeCmd[1]->args[0]);
+	 	ExecPipeCmd(pipeCmd,pipeNum);    
+	}     
+	else
+	{ 
+		SimpleCmd *cmd = handleSimpleCmdStr(0, strlen(inputBuff)); 
+		execSimpleCmd(cmd);//执行命令     
+	}     
+
+}
+
+
+
+
+
+
+
+    /*int is_pipe,pipeNum,i,j,begin,pipe[20];
     SimpleCmd *pipeCmd[20];
     i=0;
     j=0;
     begin=0;
     is_pipe=0;
     pipeNum=0;
-    while(i<strlen(inputBuff)){
-	i++;
-	if(inputBuff[i]=='|'){
-		is_pipe=1;//有元字符置判断位is_pipe为1
-		pipe[j++]=i;
-	}
+    while(i<strlen(inputBuff))
+	{
+		i++;
+		if(inputBuff[i]=='|')
+		{
+			is_pipe=1;//有元字符置判断位is_pipe为1
+			pipe[j++]=i;
+			
+		}
     }
     i=0;
     j=0;
-    if(is_pipe==1){
-	while(inputBuff[i]){
-		SimpleCmd *cmd=handleSimpleCmdStr(begin,pipe[j]-1);//执行命令
-		pipeCmd[pipeNum++]=cmd;
-		begin=i+1;
-		j++;
-	}
-	SimpleCmd *cmd = handleSimpleCmdStr(begin,i );
-	pipeCmd[pipeNum++]=cmd;//复制命令
-	ExecPipeCmd(pipeCmd,pipeNum);
+    if(is_pipe==1)
+	{	
+		while(inputBuff[i]&&i<pipe[j]-1)
+		{
+			printf("inputBuff: %c i: %d \n",inputBuff[i],i);
+			printf("pipe[j]-1: %d j= %d\n",pipe[j]-1,j);
+			SimpleCmd *cmd=handleSimpleCmdStr(begin,pipe[j]-1);//执行命令line348(begin,end)
+			printf("cmd: %s",*cmd);
+			pipeCmd[pipeNum++]=cmd;
+			begin=i+1;
+			//j++;
+			i++;
+		}
+		printf("have 4|\n");
+		SimpleCmd *cmd = handleSimpleCmdStr(begin,i );
+		pipeCmd[pipeNum++]=cmd;//复制命令
+		printf("have 1|\n");
+		printf("pipecmd: %s ,pipenum: %d \n",pipeCmd[0]->args[1],pipeNum);
+		ExecPipeCmd(pipeCmd,pipeNum-1);//line488
+		printf("have 2 |\n");
     }
-    else{
+    else
+	{
 		SimpleCmd *cmd = handleSimpleCmdStr(0, strlen(inputBuff));
 		execSimpleCmd(cmd);//执行命令
     }
-    
-	
-}
+}*/

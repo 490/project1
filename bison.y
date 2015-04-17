@@ -1,4 +1,6 @@
 %{
+    #define _GNU_SOURCE
+    #include "unistd.h"
     #include "global.h"
 
     void yyerror ();
@@ -30,7 +32,7 @@ inputRedirect   :   /* empty */
                     |'<' STRING
 ;
 
-outputRedirect  :   /* empty */
+outputRedirect  :   /* empty */          
                     |'>' STRING
 ;
 

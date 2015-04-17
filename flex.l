@@ -3,6 +3,7 @@
 	#include "stdio.h"
         #include "global.h"
         #include "bison.tab.h"
+//[0-9\".a-zA-Z\-\_]+             { strcat(inputBuff, yytext); return STRING;}
 %}
 
 
@@ -14,7 +15,7 @@
 "&"          			{ strcat(inputBuff, "&"); return '&';}
 [ \t]        			{ strcat(inputBuff, yytext); }
 \n          			{ return 0;}
-[0-9\".a-zA-Z\-/_]+             { strcat(inputBuff, yytext); return STRING;}
+[^ \t\n]+			{ strcat(inputBuff, yytext); return STRING; }
 
 %%
 

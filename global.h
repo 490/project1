@@ -16,6 +16,7 @@ extern "C" {
     
     typedef struct SimpleCmd {
         int isBack;     // 是否后台运行
+	int star;
         char **args;    // 命令及参数
         char *input;    // 输入重定向
         char *output;   // 输出重定向
