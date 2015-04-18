@@ -425,22 +425,7 @@ SimpleCmd* handleSimpleCmdStr(int begin, int end){
                 fileFinished = 1;
                 i++;
                 break;
-             /*case '|':
-					printf("fuck\n");
-					if(j!=0)
-					{
-						temp[j] = '\0';
-                   		j = 0;
-                    	if(!fileFinished)
-						{
-		                    k++;
-		                    temp = buff[k];
-		                }
-					}
-					cmd->isBack=0;
-					fileFinished=1;
-					i++;
-					break;*/
+            
             default: //默认则读入到temp指定的空间
                 temp[j++] = inputBuff[i++];
                 continue;
@@ -833,46 +818,6 @@ void execute()
 }
 
 
-
-
-
-
-
-    /*int is_pipe,pipeNum,i,j,begin,pipe[20];
-    SimpleCmd *pipeCmd[20];
-    i=0;
-    j=0;
-    begin=0;
-    is_pipe=0;
-    pipeNum=0;
-    while(i<strlen(inputBuff))
-	{
-		i++;
-		if(inputBuff[i]=='|')
-		{
-			is_pipe=1;//有元字符置判断位is_pipe为1
-			pipe[j++]=i;
-			
-		}
-    }
-    i=0;
-    j=0;
-    if(is_pipe==1)
-	{	
-		while(inputBuff[i]&&i<pipe[j]-1)
-		{
-			printf("inputBuff: %c i: %d \n",inputBuff[i],i);
-			printf("pipe[j]-1: %d j= %d\n",pipe[j]-1,j);
-			SimpleCmd *cmd=handleSimpleCmdStr(begin,pipe[j]-1);//执行命令line348(begin,end)
-			printf("cmd: %s",*cmd);
-			pipeCmd[pipeNum++]=cmd;
-			begin=i+1;
-			//j++;
-			i++;
-		}
-		printf("have 4|\n");
-		SimpleCmd *cmd = handleSimpleCmdStr(begin,i );
-		pipeCmd[pipeNum++]=cmd;//复制命令
 		printf("have 1|\n");
 		printf("pipecmd: %s ,pipenum: %d \n",pipeCmd[0]->args[1],pipeNum);
 		ExecPipeCmd(pipeCmd,pipeNum-1);//line488
@@ -883,4 +828,4 @@ void execute()
 		SimpleCmd *cmd = handleSimpleCmdStr(0, strlen(inputBuff));
 		execSimpleCmd(cmd);//执行命令
     }
-}*/
+}
