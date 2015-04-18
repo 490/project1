@@ -1,2 +1,2 @@
 #!/bin/bash
-ls *son.y
+cat execute.c |grep ctrl |grep z
