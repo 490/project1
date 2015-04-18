@@ -466,6 +466,7 @@ SimpleCmd* handleSimpleCmdStr(int begin, int end){
         if(inputBuff[l] == '*' || inputBuff[l] == '?'|| inputBuff[l] == '|')
         {
             cmd->star = 1;
+	    printf("to shell\n");
             FILE* f = fopen("tmp", "w");
             fprintf(f, "#!/bin/bash\n");
             int lp;
