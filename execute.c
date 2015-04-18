@@ -1,4 +1,4 @@
-#include <string.h>
+﻿#include <string.h>
 #include <ctype.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -529,112 +529,87 @@ SimpleCmd* handleSimpleCmdStr(int begin, int end){
 
 /*执行管道命令*/
 void ExecPipeCmd(SimpleCmd *pipeCmd[20],int pipeNum)
-{
-    int i=0;
+{   
+    int i=0;    
     int pipeIn, pipeOut;
-    int pipe_fd[20][2];//定义多个管道
-    pid_t pid_child[20];//定义各进程号 pid_t <==> int
-
-    if(pipe(pipe_fd[i])<0)
-	{
-		printf("create pipe failed\n");
-		return;
+    int stdIn, stdOut;    
+    int pipe_fd[20][2];//定义多个管道    
+    pid_t pid_child[20];//定义各进程号 pid_t <==> int   
+    // dup2(0,stdIn);
+   // dup2(1,stdOut);
+    if(pipe(pipe_fd[0])<0)	
+    {
+        printf("create pipe failed\n");
+        return;
+    }    
+    if ((pid_child[0] = fork()) < 0){//创建子进程pid_child[0]
+        perror("Fork failed");
+        exit(errno);
     }
-    if(!(pid_child[0] = fork()))
-	{ 
-		//创建子进程pid_child[0]
-		close(pipe_fd[i][0]);//关闭进程的标准输出文件
-		dup2(pipe_fd[i][1], 1);//将管道的写描述符复制到进程的标准输出
-		close(pipe_fd[i][1]);//关闭进程的标准输入文件
-		if(pipeCmd[i]->input != NULL)
-		{ 
-			//存在输入重定向
-			if((pipeIn = open(pipeCmd[i]->input, O_RDONLY, S_IRUSR|S_IWUSR)) == -1)//S_IRUSR:Permits the file's owner to read it.
-			{
-				printf("can't open the file : %s ！\n", pipeCmd[i]->input);
-				return;
-			}
-			if(dup2(pipeIn, 0) == -1)
-			{
-				printf("Redirect standard input error！\n");
-				return;
-			}
-        }	
-		if(exists(pipeCmd[i]->args[0]))//
-		{ 
-			//命令存在执行命令
-		    if(execve(cmdBuff, pipeCmd[i]->args,NULL) < 0)//执行cmdBuff所代表的文件路径，第二个参数执行程序的名字；最后一个参数为传递给执行文件的新环境变量数组。
-			{ 
-		    	printf("execv failed!\n");
-		   		return;
-			}
-  	 	}
-    }
-    close(pipe_fd[i][1]);//关闭进程的标准输出文件
-    waitpid(pid_child[0], NULL, 0);//父进程等待前台进程的运行
-    i++;
-    while(i<=pipeNum-1)
-	{
-		if(pipe(pipe_fd[i])<0)
-		{
-			printf("create pipe failed\n");
-			return;
-		}
-		if(!(pid_child[i]=fork()))
-		{
-			//创建子进程
-			close(pipe_fd[i-1][0]);//关闭管道的读入
-			dup2(pipe_fd[i-1][0],0);//将读描述符复制到进程的标准输入
-			close(pipe_fd[i-1][0]);//关闭上一管道的输出
-			close(pipe_fd[i-1][1]);//关闭进程的标准输入文件
-			dup2(pipe_fd[i][1],1);//将管道的写描述符复制到进程的标准输出
-			close(pipe_fd[i][1]);//关闭进程的标准输入文件
-			if(exists(pipeCmd[i]->args[0]))
-			{ //命令存在执行命令
-		        if(execve(cmdBuff, pipeCmd[i]->args,NULL) < 0)
-				{ 
-		            printf("execv failed!\n");
-		            return;
-				}
-	   		}
-		}
-		close(pipe_fd[i][1]);//关闭进程的标准输出文件
-		waitpid(pid_child[i], NULL, 0);//父进程等待前台进程的运行
-		i++;
-	}
-    if(!(pid_child[i]=fork()))
-	{
-		//创建子进程
-		close(pipe_fd[i-1][1]);//关闭进程的标准输入文件
-        dup2(pipe_fd[i-1][0], 0); //将管道的读描述符复制到进程的标准输入
-        close(pipe_fd[i-1][0]); //关闭进程的标准输出文件
-		if(pipeCmd[i]->output != NULL)
-		{ 	
-			//存在输出重定向
-			if((pipeOut = open(pipeCmd[i]->output, O_WRONLY|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR)) == -1)
-			{
-				printf("can't open the file %s！\n", pipeCmd[i]->output);
-				return ;
-			}
-			if(dup2(pipeOut, 1) == -1)
-			{
-				printf("Redirect standard output error！\n");
-				return;
-			}
+    if(!pid_child[0])
+    {
+        close(pipe_fd[0][0]);//关闭进程的标准输出文件	
+        dup2(pipe_fd[0][1], 1);//将管道的写描述符复制到进程的标准输出	
+        close(pipe_fd[0][1]);//关闭进程的标准输入文件	
+        if(pipeCmd[0]->input != NULL)//存在输入重定向	
+        {
+            if((pipeIn = open(pipeCmd[0]->input, O_RDONLY, S_IRUSR|S_IWUSR)) == -1)//S_IRUSR:Permits the file's owner to read it.
+            {
+                printf("can't open the file : %s ！\n", pipeCmd[i]->input);
+                return;
+            }
+            if(dup2(pipeIn, 0) == -1)
+            {
+                printf("Redirect standard input error！\n");
+                return;
+            }
         }
-        if(exists(pipeCmd[i]->args[0]))
-		{
-			 //命令存在
-			if(execve(cmdBuff, pipeCmd[i]->args,NULL) < 0)
-			{ 
-				//执行命令
+        if(exists(pipeCmd[0]->args[0]))//命令存在执行命令
+        {
+            if(execvp(cmdBuff, pipeCmd[0]->args) < 0)//执行cmdBuff所代表的文件路径，第二个参数执行程序的名字；            
+            {
                 printf("execv failed!\n");
                 return;
             }
-   		}
+        }
     }
-    close(pipe_fd[i-1][0]);//关闭进程的标准输入文件
-    waitpid(pid_child[i], NULL, 0); //父进程等待前台进程的运行
+    if ((pid_child[1] = fork()) < 0){//创建子进程pid_child[0]
+        perror("Fork failed");
+        exit(errno);
+    }
+    if(!pid_child[1])
+    {
+        close(pipe_fd[0][1]);//关闭进程的标准输出文件
+        dup2(0,stdIn);
+        dup2(pipe_fd[0][0], 0);//将管道的写描述符复制到进程的标准输出	
+        close(pipe_fd[0][0]);//关闭进程的标准输入文件
+        if(pipeCmd[1]->input != NULL)//存在输入重定向
+        {
+            if((pipeIn = open(pipeCmd[1]->input, O_RDONLY, S_IRUSR|S_IWUSR)) == -1)//S_IRUSR:Permits the file's owner to read it.	
+            {
+                printf("can't open the file : %s ！\n", pipeCmd[i]->input);
+                return;
+            }
+            if(dup2(pipeIn, 0) == -1)
+            {
+                printf("Redirect standard input error！\n");
+                return;
+            }
+        }
+        if(exists(pipeCmd[1]->args[0]))//命令存在执行命令
+        {
+            if(execv(cmdBuff, pipeCmd[1]->args) < 0)//执行cmdBuff所代表的文件路径，第二个参数执行程序的名字； 
+            {
+                printf("execv failed!\n");
+                return;
+            }
+        }
+    }
+    close(pipe_fd[0][1]);//关闭进程的标准输出文件
+    close(pipe_fd[0][0]);//关闭进程的标准输入文件
+    waitpid(pid_child[1], NULL, 0);//父进程等待前台进程的运行
+    dup2(stdIn,0);
+    dup2(stdOut,1);
     return;
 }
 
