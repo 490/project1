@@ -817,15 +817,3 @@ void execute()
 
 }
 
-
-		printf("have 1|\n");
-		printf("pipecmd: %s ,pipenum: %d \n",pipeCmd[0]->args[1],pipeNum);
-		ExecPipeCmd(pipeCmd,pipeNum-1);//line488
-		printf("have 2 |\n");
-    }
-    else
-	{
-		SimpleCmd *cmd = handleSimpleCmdStr(0, strlen(inputBuff));
-		execSimpleCmd(cmd);//执行命令
-    }
-}
