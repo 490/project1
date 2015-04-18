@@ -573,19 +573,50 @@ void ExecPipeCmd(SimpleCmd *pipeCmd[20],int pipeNum)
         }
     }
     waitpid(pid_child[0], NULL, 0);
-    if ((pid_child[1] = fork()) < 0){//创建子进程pid_child[0]
+    for (i=1;i<pipeNum-1;i++)
+    {
+        if(pipe(pipe_fd[i])<0)	
+        {
+            printf("create pipe failed\n");
+            return;
+        }    
+        if ((pid_child[i] = fork()) < 0){//创建子进程pid_child[0]
+            perror("Fork failed");
+            exit(errno);
+        }
+        if(!pid_child[i])
+        {
+            close(pipe_fd[i-1][1]);//关闭进程的标准输出文件	
+            dup2(pipe_fd[i-1][0], 0);//将管道的写描述符复制到进程的标准输出	
+            close(pipe_fd[i-1][0]);//关闭进程的标准输入文件
+            close(pipe_fd[i][0]);
+            dup2(pipe_fd[i][1], 1);
+            close(pipe_fd[i][1]);	
+            if(exists(pipeCmd[i]->args[0]))//命令存在执行命令
+            {
+                if(execvp(cmdBuff, pipeCmd[i]->args) < 0)//执行cmdBuff所代表的文件路径，第二个参数执行程序的名字；            
+                {
+                    printf("execv failed!\n");
+                    return;
+                }
+            }
+        }
+        close(pipe_fd[i-1][0]);
+        close(pipe_fd[i-1][1]);
+        waitpid(pid_child[i], NULL, 0);
+    }
+    if ((pid_child[i] = fork()) < 0){//创建子进程pid_child[0]
         perror("Fork failed");
         exit(errno);
     }
-    if(!pid_child[1])
+    if(!pid_child[i])
     {
-        close(pipe_fd[0][1]);//关闭进程的标准输出文件
-        dup2(0,stdIn);
-        dup2(pipe_fd[0][0], 0);//将管道的写描述符复制到进程的标准输出	
-        close(pipe_fd[0][0]);//关闭进程的标准输入文件
-        if(pipeCmd[1]->input != NULL)//存在输入重定向
+        close(pipe_fd[i-1][1]);//关闭进程的标准输出文件	
+        dup2(pipe_fd[i-1][0], 0);//将管道的写描述符复制到进程的标准输出	
+        close(pipe_fd[i-1][0]);//关闭进程的标准输入文件
+        if(pipeCmd[i]->input != NULL)//存在输入重定向
         {
-            if((pipeIn = open(pipeCmd[1]->input, O_RDONLY, S_IRUSR|S_IWUSR)) == -1)//S_IRUSR:Permits the file's owner to read it.	
+            if((pipeIn = open(pipeCmd[i]->input, O_RDONLY, S_IRUSR|S_IWUSR)) == -1)//S_IRUSR:Permits the file's owner to read it.	
             {
                 printf("can't open the file : %s ！\n", pipeCmd[i]->input);
                 return;
@@ -596,20 +627,18 @@ void ExecPipeCmd(SimpleCmd *pipeCmd[20],int pipeNum)
                 return;
             }
         }
-        if(exists(pipeCmd[1]->args[0]))//命令存在执行命令
+        if(exists(pipeCmd[i]->args[0]))//命令存在执行命令
         {
-            if(execv(cmdBuff, pipeCmd[1]->args) < 0)//执行cmdBuff所代表的文件路径，第二个参数执行程序的名字； 
+            if(execv(cmdBuff, pipeCmd[i]->args) < 0)//执行cmdBuff所代表的文件路径，第二个参数执行程序的名字； 
             {
                 printf("execv failed!\n");
                 return;
             }
         }
     }
-    close(pipe_fd[0][1]);//关闭进程的标准输出文件
-    close(pipe_fd[0][0]);//关闭进程的标准输入文件
-    waitpid(pid_child[1], NULL, 0);//父进程等待前台进程的运行
-    dup2(stdIn,0);
-    dup2(stdOut,1);
+    close(pipe_fd[i-1][1]);//关闭进程的标准输出文件
+    close(pipe_fd[i-1][0]);//关闭进程的标准输入文件
+    waitpid(pid_child[i], NULL, 0);//父进程等待前台进程的运行
     return;
 }
 
@@ -777,7 +806,7 @@ void execute()
 	for (i=0,j=0;i<len;i++) 
 		if (inputBuff[i] == '|') 
 		{
-			is_pipe ++;//有元字符置判断位is_pipe为1
+			is_pipe = 1;//有元字符置判断位is_pipe为1
 			pipe[++j] = i;//pipe[0] 固定为 -1
 		}
 	//printf("%d", is_pipe);    
@@ -802,3 +831,56 @@ void execute()
 	}     
 
 }
+
+
+
+
+
+
+
+    /*int is_pipe,pipeNum,i,j,begin,pipe[20];
+    SimpleCmd *pipeCmd[20];
+    i=0;
+    j=0;
+    begin=0;
+    is_pipe=0;
+    pipeNum=0;
+    while(i<strlen(inputBuff))
+	{
+		i++;
+		if(inputBuff[i]=='|')
+		{
+			is_pipe=1;//有元字符置判断位is_pipe为1
+			pipe[j++]=i;
+			
+		}
+    }
+    i=0;
+    j=0;
+    if(is_pipe==1)
+	{	
+		while(inputBuff[i]&&i<pipe[j]-1)
+		{
+			printf("inputBuff: %c i: %d \n",inputBuff[i],i);
+			printf("pipe[j]-1: %d j= %d\n",pipe[j]-1,j);
+			SimpleCmd *cmd=handleSimpleCmdStr(begin,pipe[j]-1);//执行命令line348(begin,end)
+			printf("cmd: %s",*cmd);
+			pipeCmd[pipeNum++]=cmd;
+			begin=i+1;
+			//j++;
+			i++;
+		}
+		printf("have 4|\n");
+		SimpleCmd *cmd = handleSimpleCmdStr(begin,i );
+		pipeCmd[pipeNum++]=cmd;//复制命令
+		printf("have 1|\n");
+		printf("pipecmd: %s ,pipenum: %d \n",pipeCmd[0]->args[1],pipeNum);
+		ExecPipeCmd(pipeCmd,pipeNum-1);//line488
+		printf("have 2 |\n");
+    }
+    else
+	{
+		SimpleCmd *cmd = handleSimpleCmdStr(0, strlen(inputBuff));
+		execSimpleCmd(cmd);//执行命令
+    }
+}*/
