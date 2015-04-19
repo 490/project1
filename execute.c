@@ -181,6 +181,7 @@ void ctrl_Z(){
     
 	//发送SIGSTOP信号给正在前台运作的工作，将其停止
     kill(fgPid, SIGSTOP);
+
     fgPid = 0;
 }
 
@@ -188,9 +189,9 @@ void ctrl_Z(){
 void ctrl_C(){
     Job *now = NULL;
     if(fgPid == 0){ //前台没有作业则直接返回
+	//printf("no work\n");
         return;
     }
-   
     now = head;
 	while(now != NULL && now->pid != fgPid)
 		now = now->next;
@@ -230,8 +231,16 @@ void fg_exec(int pid){
     now->cmd[i] = '\0';
     
     printf("%s\n", now->cmd);
+
+   // signal(SIGUSR1, setGoon);
+    //while(goon == 0) ;
+    //goon = 0;
     kill(now->pid, SIGCONT); //向对象作业发送SIGCONT信号，使其运行
+    int n=0;
+    //n=waitpid(fgPid,NULL,0);
     waitpid(fgPid, NULL, 0); //父进程等待前台进程的运行
+    //printf("waitpidReturn:%d\n",n);
+    //perror("error:");
 }
 
 /*bg命令*/
@@ -448,7 +457,7 @@ SimpleCmd* handleSimpleCmdStr(int begin, int end){
 	cmd->star = 0;
 
     for(l = begin; l < end; l ++)
-        if(inputBuff[l] == '*' || inputBuff[l] == '?'|| inputBuff[l] == '|')
+        if(inputBuff[l] == '*' || inputBuff[l] == '?')
         {
             cmd->star = 1;
 	    //printf("to shell\n");
@@ -518,7 +527,7 @@ void ExecPipeCmd(SimpleCmd *pipeCmd[20],int pipeNum)
 {   
     int i=0;    
     int pipeIn, pipeOut;
-    int stdIn, stdOut;    
+
     int pipe_fd[20][2];//定义多个管道    
     pid_t pid_child[20];//定义各进程号 pid_t <==> int   
     if(pipe(pipe_fd[0])<0)	
@@ -663,14 +672,17 @@ void execOuterCmd(SimpleCmd *cmd){
             }
             
             if(cmd->isBack){ //若是后台运行命令，等待父进程增加作业
+                kill(getppid(), SIGUSR2);
                 signal(SIGUSR1, setGoon); //收到信号，setGoon函数将goon置1，以跳出下面的循环
                 while(goon == 0) ; //等待父进程SIGUSR1信号，表示作业已加到链表中
                 goon = 0; //置0，为下一命令做准备
                 
                 printf("[%d]\t%s\t\t%s\n", getpid(), RUNNING, inputBuff);
                 kill(getppid(), SIGUSR1);
-            }
-            
+           signal(SIGINT,SIG_IGN);
+	    signal(SIGTSTP,SIG_IGN);
+ }
+           
             justArgs(cmd->args[0]);
             if(execv(cmdBuff, cmd->args) < 0){ //执行命令
                 printf("execv failed!\n");
@@ -681,6 +693,12 @@ void execOuterCmd(SimpleCmd *cmd){
             if(cmd ->isBack){ //后台命令             
                 fgPid = 0; //pid置0，为下一命令做准备
                 addJob(pid); //增加新的作业
+
+                signal(SIGUSR2,setGoon);
+                while(goon == 0);
+                goon = 0;
+
+
                 kill(pid, SIGUSR1); //子进程发信号，表示作业已加入
                 
                 //等待子进程输出

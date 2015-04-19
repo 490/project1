@@ -1,2 +1,2 @@
 #!/bin/bash
-cat execute.c |grep ctrl |grep z
+ls *.o

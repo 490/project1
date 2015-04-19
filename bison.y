@@ -68,6 +68,10 @@ int main(int argc, char** argv) {
     printf("6146 @computer:%s$--> ", get_current_dir_name()); //打印提示符信息
 
     while(1){
+
+      c=getchar();
+      if(c!=EOF)
+          ungetc(c,stdin);
         
         yyparse(); //调用语法分析函数，该函数由yylex()提供当前输入的单词符号
 
